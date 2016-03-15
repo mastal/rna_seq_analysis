@@ -1,0 +1,189 @@
+Maria Stalteri
+Jan 10, 2011
+Notes on using AWS Management Console
+jan2011_aws_notesg.txt
+
+# 1. To start an instance (that has already been created):
+-navigate to the EC2 window;
+-from the left-hand side panel select Instances;
+-main window should show a list of instances for your account,
+ same as the output from the command ec2-describe-instances with
+ the ec2-api-tools;
+-select one of the instances by clicking the checkbox to the left
+ of the instance name;
+-from the InstanceActions drop-down menu select Start;
+-after the panel shows the instance as running, this is when Amazon starts charging
+ for hours or partial hours of instance use;   
+
+# 2. To connect to a running instance by ssh:
+- select the instance by clicking on the box to the left of the instance name;
+- select Connect from the InstanceActions drop-down menu;
+- sometimes you may have to click on the Refresh button for the Connect
+  option to be available, otherwise it remains greyed out;
+- a connect pop-up window - Connect Help - Secure Shell (SSH) should come up;
+- this gives you the public DNS address for this session of your instance;
+- each time you run an instance it has a different public DNS address;
+- note that the line of code amazon gives you tells you to log in as 'root',
+  for example: ssh -i userkey.pem root@ec2-46-51-138-117.eu-west-1.compute.amazonaws.com ;
+- apart from it generally not being a good idea to do everything as root,
+  when you ssh using the above code, it usually connects, but immediately logs you out
+  with a message telling you to log in as 'ec2-user' rather than as root;
+- for ubuntu instances, log in as 'ubuntu' instead of 'ec2-user';
+- note from the code above that you need a key pair in order to connect to an instance,
+  the -i parameter is the path to the file with your key pair
+- I usually also ssh with option -XYC, in case I want to do anything that requires an X-window;
+- from your computer ssh to the running instance as instructed above;
+- you probably have to have various environment variables and account IDs for AWS and EC2
+  already set up before you can do this;
+
+[ ec2]$ ssh -XYC -i userkey.pem  ubuntu@ec2-46-51-155-191.eu-west-1.compute.amazonaws.com 
+
+Warning: Permanently added 'ec2-46-51-155-191.eu-west-1.compute.amazonaws.com,46.51.155.191' (RSA) to the list of known hosts.
+Linux ip-10-48-207-178 2.6.35-22-virtual #33-Ubuntu SMP Sun Sep 19 21:05:42 UTC 2010 x86_64 GNU/Linux
+Ubuntu 10.10
+
+
+# 3. To mount an existing EBS volume (which is attached to the running instance):
+- this part can't be done through the AWS Management Console at present,
+  has to be done from the commandline from the ssh connection on the remote instance;
+- what you can do through the AWS console is Create/Attach/Detach/Delete an EBS volume;
+- before you can write anything to an EBS volume you have to format it, again from the 
+  Linux commandline;
+- once a volume is formatted you can mount it and write stuff to it;
+- each time you start up an existing EBS-volume backed instance you will have to
+  go through the process of mounting all the volumes attached to it (except the root volume)
+  before you can read from/write to them;
+- note that you only format an EBS volume the first time when you create it;
+- you can use either the ec2-api tools or the AWS Management Console to see which
+  volumes are attached to your instance and what mount point they are attached to;
+- for the ec2-api-tools, do 'ec2-describe-volumes';
+- for the AWS console, click on EC2 from the top menu bar;
+- click on Volumes from the panel on the left-hand side;
+- this should list all the EBS volumes belonging to your account, and show
+  the volume name, size, whether they are attached to an instance, and what the 
+  mount point is (/dev/sda1 is the root volume; other volumes are /dev/sdf to /dev/sdp);
+
+- the code below will only work for volumes attached to the running instance;
+- then, from the ssh connection, for example:
+
+  $ mkdir /mnt/bowtie_color_index_and_fa
+  $ mount /dev/sdh /mnt/bowtie_color_index_and_fa
+
+- if you get an error message saying 'Permission denied', do the commands as 'sudo', i.e.:
+  $ sudo mkdir /mnt/bowtie_color_index_and_fa
+  $ sudo mount /dev/sdh /mnt/bowtie_color_index_and_fa
+
+- if you need help, click on the Help button at the top left of the panel listing the EBS volumes;
+- check that you can read the volume after it is mounted:
+
+  $ cd /mnt/bowtie_color_index_and_fa
+  $ ls -al
+- if a program needs to write to a mounted EBS volume, you may need to change the directory permissions,
+  usually the directory ownership 
+
+   (i.e. sudo chown ubuntu /mnt/bowtie_color_index_and_fa)
+  
+  otherwise you will get an error message saying it can't open or write the output file;
+
+#######################################
+ubuntu@ip-10-48-207-178:~$ cd /mnt
+ubuntu@ip-10-48-207-178:/mnt$ ls -al
+total 24
+drwxr-xr-x  3 root root  4096 2010-10-14 08:00 .
+drwxr-xr-x 21 root root  4096 2010-10-07 14:53 ..
+drwx------  2 root root 16384 2010-10-14 08:00 lost+found
+
+ubuntu@ip-10-48-207-178:/mnt$ mkdir /mnt/bowtie_aln04
+mkdir: cannot create directory `/mnt/bowtie_aln04': Permission denied
+
+ubuntu@ip-10-48-207-178:/mnt$ sudo mkdir /mnt/bowtie_aln04
+ubuntu@ip-10-48-207-178:/mnt$ ls -al
+total 28
+drwxr-xr-x  4 root root  4096 2011-01-14 15:30 .
+drwxr-xr-x 21 root root  4096 2010-10-07 14:53 ..
+drwxr-xr-x  2 root root  4096 2011-01-14 15:30 bowtie_aln04
+drwx------  2 root root 16384 2010-10-14 08:00 lost+found
+
+ubuntu@ip-10-48-207-178:/mnt$ sudo mount /dev/sdn /mnt/bowtie_aln04/
+ubuntu@ip-10-48-207-178:/mnt$ cd bowtie_aln04/
+ubuntu@ip-10-48-207-178:/mnt/bowtie_aln04$ ls -al
+total 25202848
+drwxr-xr-x 3 ubuntu root          4096 2010-12-16 15:09 .
+drwxr-xr-x 4 root   root          4096 2011-01-14 15:30 ..
+-rw------- 1 ubuntu ubuntu         860 2010-12-15 22:18 flores_RME022_bowtie_aln04_highmem_nohup.out
+-rw------- 1 ubuntu ubuntu         388 2010-12-16 14:13 flores_RME023_bowtie_aln04_highmem_nohup.out
+drwx------ 2 root   root         16384 2010-12-13 14:54 lost+found
+-rw-r--r-- 1 ubuntu ubuntu 13927378316 2010-12-15 22:18 SL001_R00095_RME022_01pg_F3_bowtie04_aln.sam
+-rw-r--r-- 1 ubuntu ubuntu 11855083097 2010-12-16 14:13 SL001_R00095_RME023_01pg_F3_bowtie04_aln.sam
+###################################################
+
+#4. To delete a snapshot:
+
+- from the AWS Management Console, EC2 Dashboard, on the vertical panel on the left-hand side select Snapshots;
+- the main panel should list all the snapshots belonging to your account, one row for each snapshot;
+- click in the box to the left of the name of the snapshot you want to delete;
+- on the bar above the list of snapshots click on the button marked 'Delete';
+- a pop-up window appears, with a message something like 'Are you sure you want to delete snapshot ...?';
+- click yes;
+- the snapshot is instantly deleted from the list;
+
+#5. To create a snapshot of an EBS volume:
+
+- from the AWS Management console select the EC2 tab;
+- from the EC2 Dashboard, vertical panel on left-hand side, select Volumes;
+- you should get a list of volumes associated with your account, one row for each volume, in the main panel,
+  the same volumes listed if you use the ec2-api-tools command 'ec2-describe-volumes';
+- click the box to the left of the name of the volume you want to snapshot;
+- above the list of volumes, a button with 'Create Snapshot' should appear;
+- click on the 'Create Snapshot' button;
+- you should get a popup window with the header 'Create Snapshot' containing the volume ID
+  and a box for you to enter a description of the snapshot;
+- enter a description and click on 'create';
+- from the EC2 Dashboard, left-hand side panel, select Snapshots;
+- the new snapshot should now be listed in the main panel, if not, click on the 'Refresh'
+  button above the list of snapshots;
+- usually you will see an 'In Progress' sign in the 'Status' column, sometimes snapshots
+  of volumes 100 Gb to 200 Gb in size seem to take a long time (a couple of hours or longer);
+- on the other hand, a snapshot of the 6 Gb volume with the bowtie genome index seems to have
+  been done instantly;
+
+
+#6. To detach an EBS volume from an instance:
+
+- I am not sure whether it's safe to detach a volume from a running instance
+- usually I have attached/detached volumes while instances are not running
+- however, today, 14/01/11, I was connected to a running instance by ssh,
+  checked what was on the volume I wanted to delete, checked that I had both a snapshot
+  of the volume, and a copy of the volume's contents on the IoP server, then logged out
+  out of the ssh session;
+- from the AWS management console, click on the EC2 tab, navigate to the left-hand side panel
+  on the EC2 dashboard, select Volumes;
+- check the box to the left of the name of the volume you want to detach;
+- even though the instance the volume is attached to is running, the 'Detach Volume'
+  button, above the list of volumes, is available;
+- click the 'Detach Volume' button;
+- you get a pop-up box saying 'are you sure you want to detach volume volume-ID;
+  click yes;
+- the volume should show as 'detaching' in the 'Attachment Information' column;
+- click the 'Refresh' button at the top to show the progress;
+- the attachment information is showing 'busy' rather than 'attached' or 'detached',
+  even though initially it was showing as 'detaching'; this is probably because the 
+  instance it is attached to is running! stop the instance and see what happens.
+- when the instance stopped, the 'Attachment Information' col. for the volume
+  became blank, and the 'Status' column showed a blue dot and the status 'available';
+- Conclusion: you can't detach an EBS volume while an instance is running.
+
+#7. To delete an EBS volume:
+
+- first detach the volume;
+- from the EC2/EC2 Dashboard menu select volumes;
+- the main panel should show a list of volumes associated with your account;
+- the 'Attachment Information' column should show which volumes are attached to which instances;
+- check the box to the left of the name of the volume you want to delete, after
+  first checking that it is not attached to an instance (i.e. Attachment Information column is blank);
+- click on the 'Delete' button in the row above the list of volumes;
+- you will get a pop-up window with a message 'Are you sure you want to delete volume volume-ID?';
+- select 'yes', or 'cancel' if you don't want to delete the volume;
+- if you select 'yes', the 'status' column for the volume should show a red dot and 'deleting';
+- click on the 'Refresh' button on the top right of the main panel to show progress;
+
