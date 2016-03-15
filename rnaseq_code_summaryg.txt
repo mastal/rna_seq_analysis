@@ -1,0 +1,127 @@
+# rnaseq_code_summaryg.txt
+# Maria Stalteri
+# 24/03/2011
+
+1. tophat 
+
+# tophat run 5:
+# using --library-type fr-secondstrand
+
+ubuntu@ip-10-227-42-3:/mnt/tophat_libtype_run5$ nohup tophat -p 8 --library-type fr-secondstrand 
+-o ./tophat_strand_RME022_run5_out 
+--color --quals 
+/mnt/bowtie_index/mm9_c 
+/mnt/csfasta/SL001_R00095_RME022_01pg_F3.csfasta  
+/mnt/csfasta/SL001_R00095_RME022_01pg_F3_QV.qual 
+
+# run took about 36h;
+# repeated the run  with sample RME023
+
+# tophat run 6:
+# using --library-type fr-secondstrand and -G/--GTF
+
+ubuntu@ip-10-227-42-3:/mnt/tophat_libtype_run5$  nohup tophat -p 8 --library-type fr-secondstrand 
+--GTF /mnt/bowtie_index/Mus_musculus_v5c.NCBIM37.60.gtf 
+-o ./tophat_strand_gtf_RME022_run6_out 
+--color --quals 
+/mnt/bowtie_index/mm9_c 
+/mnt/csfasta/SL001_R00095_RME022_01pg_F3.csfasta  
+/mnt/csfasta/SL001_R00095_RME022_01pg_F3_QV.qual
+
+# run was repeated with sample RME023
+
+2. cufflinks
+
+# cufflinks run 6a:
+# using output (bam files) from tophat run 6 and --library-type fr-secondstrand
+
+ubuntu@ip-10-48-7-95:/mnt/tophat_results$ nohup cufflinks -p 8 -q  
+-r /mnt/bowtie_index/mm9_c.fa 
+--library-type fr-secondstrand 
+-o /mnt/tophat_results/cufflinks_strand_gtf_RME022_run6a_out
+ /mnt/tophat_results/tophat_strand_gtf_RME022_run6_out/RME022_tophat_run6_accepted_hits.bam 
+
+# the run was repeated for sample RME023
+
+# cufflinks run 6b:
+# using	output (bam files) from	tophat run 6, --library-type fr-secondstrand, and -g/--GTF
+# note that cufflinks does not find novel transcripts when you give it a reference annotation;
+  
+ubuntu@ip-10-48-7-95:/mnt/tophat_results$ nohup cufflinks -p 8 -q 
+-G /mnt/bowtie_index/Mus_musculus_v5c.NCBIM37.60.gtf 
+-r /mnt/bowtie_index/mm9_c.fa 
+--library-type fr-secondstrand 
+-o /mnt/tophat_results/cufflinks_strand_gtf_RME022_run6b_out 
+/mnt/tophat_results/tophat_strand_gtf_RME022_run6_out/RME022_tophat_run6_accepted_hits.bam 
+
+
+# the run was repeated for sample RME023
+
+3. cuffcompare
+
+# cuffcompare run 6a1:
+# run with the output from cufflinks run 6a, using -r with the Mus_musculus_v5c.gtf file, and -s
+
+ubuntu@ip-10-48-199-42:/mnt/tophat_results/cuffcompare_strand_gtf_run6a1$ nohup cuffcompare  
+-r /mnt/bowtie_indexes/Mus_musculus_v5c.NCBIM37.60.gtf 
+-s /mnt/bowtie_indexes/mm9_c.fa 
+-o ./flores_cuffcompare_run6a1_summary.stats 
+/mnt/tophat_results/cufflinks_strand_gtf_RME022_run6a_out/RME022_cufflinks_strand_gtf_run6a_transcripts.gtf 
+/mnt/tophat_results/cufflinks_strand_gtf_RME023_run6a_out/RME023_cufflinks_strand_gtf_run6a_transcripts.gtf 
+
+
+# cuffcompare run 6a2:
+# run with the output from cufflinks run 6a, using -r with the Mus_musculus_v5c.gtf file, -s,
+# and also used -R (a cuffcompare parameter!) to see what effect it has on the stats; 
+
+ubuntu@ip-10-48-199-42:/mnt/tophat_results/cuffcompare_strand_gtf_run6a2$ nohup cuffcompare  
+-r /mnt/bowtie_indexes/Mus_musculus_v5c.NCBIM37.60.gtf 
+-R  
+-s /mnt/bowtie_indexes/mm9_c.fa 
+-o ./flores_cuffcompare_run6a2_summary  
+/mnt/tophat_results/cufflinks_strand_gtf_RME022_run6a_out/RME022_cufflinks_strand_gtf_run6a_transcripts.gtf 
+/mnt/tophat_results/cufflinks_strand_gtf_RME023_run6a_out/RME023_cufflinks_strand_gtf_run6a_transcripts.gtf 
+
+
+# cuffcompare run 6b1:
+# run with the output from cufflinks run 6b, using -r with the Mus_musculus_v5c.gtf file,
+
+$ nohup cuffcompare 
+-r /mnt/bowtie_indexes/Mus_musculus_v5c.NCBIM37.60.gtf 
+-s /mnt/bowtie_indexes/mm9_c.fa 
+-o ./flores_cuffcompare_run6b1 
+cufflinks_strand_gtf_RME022_run6b_out/RME022_cufflinks_strand_gtf_run6b_transcripts.gtf 
+cufflinks_strand_gtf_RME023_run6b_out/RME023_cufflinks_strand_gtf_run6b_transcripts.gtf 
+
+
+# cuffcompare run 6b2:
+# run with the output from cufflinks run 6b, using -r with the Mus_musculus_v5c.gtf file, -s and -R
+
+4. cuffdiff
+
+# cuffdiff run 6b2a:
+# run with bam files from tophat run 6 and and combined.gtf file from cuffcompare run 6b2
+
+ubuntu@ip-10-48-17-235:/mnt/tophat_results$ nohup cuffdiff -p 8 --library-type fr-secondstrand 
+-r /mnt/bowtie_index/mm9_c.fa  
+-L RME022,RME023 
+-o /mnt/tophat_results/cuffdiff_strand_run6b2a 
+/mnt/tophat_results/cuffcompare_strand_gtf_run6b2/flores_cuffcompare_run6b2.combined.gtf  
+/mnt/tophat_results/tophat_strand_gtf_RME022_run6_out/RME022_tophat_run6_accepted_hits.bam 
+/mnt/tophat_results/tophat_strand_gtf_RME023_run6_out/RME023_tophat_run6_accepted_hits.bam 
+
+
+# cuffdiff run 6b2b:
+# run with bam files from tophat run 6 and combined.gtf file from
+# cuffcompare run 6b2, and -N (quartile normalization excluding top 25%)
+
+ubuntu@ip-10-48-17-235:/mnt/tophat_results$ nohup cuffdiff -q  -p 8 --library-type fr-secondstrand 
+-r /mnt/bowtie_index/mm9_c.fa 
+-N 
+-L RME022,RME023 
+-o /mnt/tophat_results/cuffdiff_strand_run6b2b  
+/mnt/tophat_results/cuffcompare_strand_gtf_run6b2/flores_cuffcompare_run6b2.combined.gtf 
+/mnt/tophat_results/tophat_strand_gtf_RME022_run6_out/RME022_tophat_run6_accepted_hits.bam  
+/mnt/tophat_results/tophat_strand_gtf_RME023_run6_out/RME023_tophat_run6_accepted_hits.bam
+
+***************************************************
