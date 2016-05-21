@@ -1,0 +1,222 @@
+# Maria Stalteri
+# 21/05/2016
+# align_against_BTV_short.txt
+
+# Sample code for alignment of previously
+# mapped RNA-Seq data to BTV with Bowtie2.
+
+# Reads are Illumina SE 51 bp.
+
+# BTV sequences were obtained from SJ.
+# Need to make Bowtie2 index for BTV genome.
+
+# 1. Join the viral fasta sequences into one file.
+
+$ cd BTV8_Ardennes_sequences/  
+
+$ cat BTV8-S*.fa > BTV8_all.fa
+
+# check that the file has all 10 sequences.
+
+$ grep '^>' BTV8_S_all.fa 
+
+# 2. Make a bowtie2 index of the BTV genome.
+#    Index has 6 files, 4 with suffix .1.bt2 to .4.bt2,
+#    and 2 files with suffix .rev.1.bt2 and .rev.2.bt2. 
+
+$ mkdir BTV_bowtie2_idx
+
+$ /home/user/maria_ngs_software/bowtie2-2.2.9/bowtie2-build  \
+  BTV8_Ardennes_sequences/BTV8_all.fa  BTV_bowtie2_idx/BTV8_all
+
+# 3. Run bowtie2-inspect.
+
+$ /home/ipmbmsta/maria_ngs_software/bowtie2-2.2.9/bowtie2-inspect \
+  --summary BTV_bowtie2_idx/BTV8_all
+
+# 4. Move the combined fasta BTV sequence into the same folder
+#    as the bowtie genome index. This will stop bowtie2 and tophat
+#    from reconstructing the genome fasta when they run.
+
+$ mv BTV8_Ardennes_sequences/BTV8_all.fa BTV_bowtie2_idx/
+
+# 5. Make an .fai index of the genome fasta file with samtools faidx, 
+#    will be needed when viewing bam files in a genome browser.
+
+$ cd BTV_bowtie2_idx/
+$ samtools faidx BTV8_all.fa 
+
+# Up until this part needs oonly to be run once.
+################################################################
+# The rest of the code needs to be repeated for each sample.
+
+# 6. Make working directories for the bowtie BTV alignments
+
+# 6a.
+
+$ mkdir may21_cow_vs_BTV
+$ cd may21_cow_vs_BTV
+
+# 6b. 
+
+$ mkdir bowtie_BF0A_vs_BTV
+$ cd bowtie_BF0A_vs_BTV
+
+# 7. Convert tophat output bam files (accepted_hits.bam
+#    and unmapped.bam) to fastq format.
+
+$ /home/user/maria_ngs_software/bedtools2/bin/bedtools bamtofastq \
+  -i Sample_BF0_A/Sample_BF0_A_accepted_hits_sorted.bam \
+  -fq Sample_BF0_A_accepted_hits_sorted.fastq
+
+$ /home/user/maria_ngs_software/bedtools2/bin/bedtools bamtofastq \
+  -i Sample_BF0_A/Sample_BF0_A_unmapped.bam \
+  -fq Sample_BF0_A_unmapped.fastq
+
+# 8. Join the two fastq files into one.
+
+$ cat Sample_BF0_A_accepted_hits_sorted.fastq \
+  Sample_BF0_A_unmapped.fastq  > Sample_BF0_A_combined_reads.fastq
+ 
+# 9. To save space, delete the two separate fastq files.
+
+$ rm Sample_BF0_A_accepted_hits_sorted.fastq 
+$ rm Sample_BF0_A_unmapped.fastq 
+
+# 10. Align to BTV genome with Bowtie2.
+
+$ nohup /home/user/maria_ngs_software/bowtie2-2.2.9/bowtie2 \
+-t -p 16 -x BTV_bowtie2_idx/BTV8_all  \
+-U Sample_BF0_A_combined_reads.fastq \
+-S bowtie_Sample_BF0_A_combined_reads_vs_BTV.sam
+
+
+# 11. Use samtools to convert sam to bam,
+#    and extract only the aligned reads, then delete
+#    the (huge) original sam file, convert final bam to sam
+#    in order to see which BTV segment the reads aligned to, etc.
+
+# 11a. Convert sam to bam.
+
+$ samtools view -bS -o  \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV.bam \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV.sam 
+
+# 11b. Sort bam.
+
+$ samtools sort \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV.bam \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted 
+
+# 11c. Index bam.
+
+$ samtools index bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted.bam 
+
+# 11d. Get chromosomal alignment stats with idxstats.
+
+$ samtools idxstats \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted.bam > \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted_idxstats.txt
+
+# 11e. Get overall alignment stats with flagstat.
+
+$ samtools flagstat \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV.bam > \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_flagstat.txt
+
+# 11f. Extract the aligned reads only, will make the
+      file much smaller when there are few aligned reads.
+
+$ samtools view -h -F 4 -o \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4.sam \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted.bam
+
+# 11g. Need the corresponding bam file in order to view
+      in genome browser.
+
+$ samtools view -bS -o \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4.bam \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4.sam 
+
+# 11h. Sort the bam file. 
+#     Should be already sorted, but just in case,
+#     because indexing won't work otherwise, and
+#     need .bai index to view in genome browser.
+
+$ samtools sort \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4.bam \
+  bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4_sorted
+
+# 11i. Index the bam file.
+ 
+$ samtools index \
+bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4_sorted.bam 
+
+# 12. Now, remove large files that we no longer want because they
+#    take up lots of Gigabytes.
+
+# 12a. Remove the original sam file, many Gigabytes of unaligned reads.
+
+$ rm bowtie_Sample_BF0_A_combined_reads_vs_BTV.sam
+
+# 12b. Remove the corresponding unsorted bam file, for the same reason.
+
+$ rm bowtie_Sample_BF0_A_combined_reads_vs_BTV.bam
+
+# 12c. Remove the sorted bam file and the .bai index, because they have
+#     all the unaligned reads as well.
+
+$ rm bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted.bam
+$ rm bowtie_Sample_BF0_A_combined_reads_vs_BTV_sorted.bam.bai 
+
+# 12d. Remove the filtered file before the sort,
+#     it should be identical to the filtered sorted file
+
+$ rm bowtie_Sample_BF0_A_combined_reads_vs_BTV_filtF4.bam 
+
+# Files to keep:
+#  1. the screen output from running bowtie.
+#  2. idxstats output.
+#  3. flagstat output.
+#  4. the filtered sam file.
+#  5. the filtered sorted bam file.
+#  6. the .bai index for the filtered sorted bam file.
+
+# 13. We could remove the combined_reads.fastq file to save space,
+#     because it can be regenerated from the bam files,
+#     but will keep it for the time being because it takes several (3)
+#     steps to produce it.   
+
+### $ rm Sample_BF0_A_combined_reads.fastq
+  
+#########################################################
+# Software versions used:
+
+# 1. bowtie2
+
+$ /home/user/maria_ngs_software/bowtie2-2.2.9/bowtie2 --version
+
+# /home/user/maria_ngs_software/bowtie2-2.2.9/bowtie2-align-s version 2.2.9
+# 64-bit
+# Built on localhost.localdomain
+# Thu Apr 21 18:36:37 EDT 2016
+# Compiler: gcc version 4.1.2 20080704 (Red Hat 4.1.2-54)
+# Options: -O3 -m64 -msse2  -funroll-loops -g3 -DPOPCNT_CAPABILITY
+# Sizeof {int, long, long long, void*, size_t, off_t}: {4, 8, 8, 8, 8, 8}
+
+# 2. bedtools
+
+$ /home/user/maria_ngs_software/bedtools2/bin/bedtools --version
+
+# bedtools v2.25.0
+
+# 3. samtools
+
+$ samtools --version
+
+# samtools 1.2
+# Using htslib 1.2.1
+# Copyright (C) 2015 Genome Research Ltd.
+
+############################################################
+############################################################
